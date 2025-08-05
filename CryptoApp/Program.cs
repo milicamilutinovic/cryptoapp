@@ -1,15 +1,32 @@
+﻿using CryptoApp.Models;
+using CryptoApp.Services;
+using Microsoft.AspNetCore.Http.Features;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Učitaj AppSettings
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+
+// Registruj servise
+builder.Services.AddScoped<CryptoService>();
+builder.Services.AddHostedService<FileWatcherService>();
+builder.Services.AddTransient<TransferService>();
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 500 * 1024 * 1024; // 500 MB limit, prilagodi po potrebi
+});
+
+
+// Razor Pages
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -22,4 +39,6 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
-app.Run();
+
+
+app.Run(); // OVO MORA BITI POSLEDNJE — sve posle ovoga se neće izvršiti

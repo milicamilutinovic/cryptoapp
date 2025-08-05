@@ -18,6 +18,17 @@ public class BlakeHasher
         _key = Encoding.UTF8.GetBytes(key);
         _hashSizeBits = hashSizeBits;
     }
+    public byte[] HashBytes(byte[] inputBytes)
+    {
+        if (inputBytes == null || inputBytes.Length == 0)
+            throw new ArgumentException("Input bytes must not be null or empty.", nameof(inputBytes));
+
+        using (var hasher = new HMACBlake2B(_hashSizeBits))
+        {
+            hasher.Key = _key;
+            return hasher.ComputeHash(inputBytes);
+        }
+    }
 
     public string HashString(string input)
     {

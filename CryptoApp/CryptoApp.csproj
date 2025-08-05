@@ -7,11 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Services\" />
+    <PackageReference Include="Konscious.Security.Cryptography.Blake2" Version="1.1.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Konscious.Security.Cryptography.Blake2" Version="1.1.1" />
+    <Folder Include="wwwroot\decrypted\" />
+    <Folder Include="wwwroot\encrypted\" />
+    <Folder Include="wwwroot\watched\" />
   </ItemGroup>
 
 </Project>

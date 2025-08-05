@@ -1,0 +1,126 @@
+﻿@page
+@model CryptoApp.Pages.ExchangeModel
+@{
+    ViewData["Title"] = "Razmena fajlova (TCP)";
+}
+
+<style>
+    .exchange-container {
+        max-width: 480px;
+        margin: 3rem auto;
+        padding: 2rem;
+        background-color: #1e1e2f;
+        border: 2px solid #7b4ae2;
+        border-radius: 12px;
+        box-shadow: 0 0 15px #7b4ae2aa;
+        color: #eee;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+
+    h1 {
+        text-align: center;
+        color: #ddd;
+        margin-bottom: 2rem;
+        font-weight: 700;
+    }
+
+    h3 {
+        color: #bbb;
+        margin-bottom: 1rem;
+        font-weight: 700;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #bbb;
+        font-size: 1.1rem;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    input[type="number"] {
+        width: 100%;
+        padding: 0.6rem 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 8px;
+        border: 1.5px solid #7b4ae2;
+        background-color: #121212;
+        color: #eee;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s ease;
+    }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="file"]:focus {
+            border-color: #9f7eff;
+            box-shadow: 0 0 8px #9f7effaa;
+        }
+
+    input[type="submit"] {
+        width: 100%;
+        padding: 1rem 0;
+        border: none;
+        border-radius: 50px;
+        background: linear-gradient(45deg, #7b4ae2, #9f7eff);
+        color: white;
+        font-size: 1.3rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 0 15px #7b4ae2aa;
+        transition: all 0.4s ease;
+        margin-top: 0.5rem;
+    }
+
+        input[type="submit"]:hover {
+            box-shadow: 0 0 25px #9f7effcc;
+            transform: scale(1.05);
+        }
+
+    hr {
+        border-color: #7b4ae2;
+        margin: 3rem 0;
+    }
+
+    .status-message {
+        max-width: 480px;
+        margin: 2rem auto 0 auto;
+        color: #6fcf97;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-align: center;
+    }
+</style>
+
+<h1>Razmena fajlova (TCP)</h1>
+
+<div class="exchange-container">
+    <form method="post" enctype="multipart/form-data">
+        <h3>Pošalji fajl:</h3>
+        <label for="fileUpload">Izaberi fajl:</label>
+        <input type="file" id="fileUpload" name="UploadFile" />
+
+        <label for="IpAddress">IP adresa primaoca:</label>
+        <input type="text" id="IpAddress" name="IpAddress" value="127.0.0.1" />
+
+        <input type="submit" name="action" value="Pošalji fajl" />
+    </form>
+
+    <hr />
+
+    <form method="post">
+        <h3>Pokreni slušanje:</h3>
+        <label for="Port">Port:</label>
+        <input type="number" id="Port" name="Port" value="9000" min="1" max="65535" />
+
+        <input type="submit" name="action" value="Slušaj za fajl" />
+    </form>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <p class="status-message">@Model.StatusMessage</p>
+}

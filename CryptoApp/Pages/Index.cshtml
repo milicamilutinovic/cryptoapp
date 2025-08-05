@@ -1,10 +1,99 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Početna";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<style>
+    /* Samo za ovaj page, možeš prebaciti u CSS kasnije */
+    #welcome-section {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+        #welcome-section h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #ddd;
+        }
+
+        #welcome-section p.lead {
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            color: #bbb;
+        }
+
+    #go-button {
+        font-size: 1.5rem;
+        padding: 1rem 3rem;
+        border-radius: 50px;
+        background: linear-gradient(45deg, #7b4ae2, #9f7eff);
+        border: none;
+        color: white;
+        cursor: pointer;
+        box-shadow: 0 0 15px #7b4ae2aa;
+        transition: all 0.4s ease;
+    }
+
+        #go-button:hover {
+            box-shadow: 0 0 25px #9f7effcc;
+            transform: scale(1.05);
+        }
+
+    #main-menu {
+        padding: 4rem 0;
+    }
+</style>
+
+<div id="welcome-section" class="container-fluid">
+    <h1>Dobrodošli u CryptoApp</h1>
+    <p class="lead">Bezbedno šifrovanje i dešifrovanje fajlova</p>
+    <button id="go-button" onclick="scrollToMenu()">Idemo dalje</button>
 </div>
+
+<div id="main-menu" class="container d-flex flex-column align-items-center">
+    <h2 class="text-center mb-4" style="color:#7b4ae2;">Glavni Meni</h2>
+    <div class="card shadow mb-4" style="max-width: 500px; width: 100%; border-radius: 12px; border: 2px solid #7b4ae2;">
+        <div class="card-header py-3 bg-primary text-center" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+            <h6 class="m-0 font-weight-bold text-white">Meni</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 d-grid">
+                    <a class="btn btn-primary btn-lg" asp-page="/Encode">
+                        <i class="fas fa-lock me-2"></i>Šifrovanje fajla
+                    </a>
+                </div>
+                <div class="col-6 d-grid">
+                    <a class="btn btn-success btn-lg" asp-page="/Decode">
+                        <i class="fas fa-unlock me-2"></i>Dešifrovanje fajla
+                    </a>
+                </div>
+                <div class="col-6 d-grid">
+                    <a class="btn btn-warning btn-lg text-white" asp-page="/Settings">
+                        <i class="fas fa-cog me-2"></i>Podešavanja
+                    </a>
+                </div>
+                <div class="col-6 d-grid">
+                    <a class="btn btn-info btn-lg" asp-page="/Exchange">
+                        <i class="fas fa-exchange-alt me-2"></i>Razmena fajlova
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        function scrollToMenu() {
+            document.getElementById("main-menu").scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+}

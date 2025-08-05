@@ -1,22 +1,133 @@
-html {
-  font-size: 14px;
+﻿body {
+    background-color: #121212 !important;
+    color: #fff !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+.navbar-dark.bg-dark {
+    background-color: #1e1e2f !important;
+    border-bottom: 1px solid #7b4ae2;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.navbar-brand, .nav-link {
+    color: #ddd !important;
 }
 
-html {
-  position: relative;
-  min-height: 100%;
+    .nav-link.active {
+        color: #7b4ae2 !important;
+        font-weight: 600;
+    }
+
+.card {
+    background-color: #1e1e2f;
+    border: 2px solid #7b4ae2;
+    color: #fff;
 }
 
-body {
-  margin-bottom: 60px;
+.card-header.bg-primary {
+    background-color: #7b4ae2 !important;
+    border-bottom: 2px solid #5a36b3;
 }
+
+.btn-primary {
+    background-color: #7b4ae2;
+    border-color: #6a3dd1;
+    color: white;
+}
+
+    .btn-primary:hover, .btn-primary:focus {
+        background-color: #6a3dd1;
+        border-color: #5936b2;
+        color: white;
+    }
+
+.btn-success {
+    background-color: #6fcf97;
+    border-color: #58b678;
+    color: #121212;
+}
+
+    .btn-success:hover, .btn-success:focus {
+        background-color: #58b678;
+        border-color: #457f4f;
+        color: #121212;
+    }
+
+.btn-warning {
+    background-color: #7b4ae2;
+    border-color: #5a36b3;
+    color: white;
+}
+
+    .btn-warning:hover, .btn-warning:focus {
+        background-color: #5a36b3;
+        border-color: #3f2879;
+        color: white;
+    }
+
+.btn-info {
+    background-color: #9f7eff;
+    border-color: #7a57cc;
+    color: white;
+}
+
+    .btn-info:hover, .btn-info:focus {
+        background-color: #7a57cc;
+        border-color: #573e8a;
+        color: white;
+    }
+
+h1, h6, p {
+    color: #eee;
+}
+
+.container-fluid {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+}
+
+.lead {
+    font-size: 1.25rem;
+}
+
+.d-grid.gap-3 > a.btn {
+    box-shadow: 0 0 8px #7b4ae2aa;
+    transition: all 0.3s ease;
+}
+
+    .d-grid.gap-3 > a.btn:hover {
+        box-shadow: 0 0 15px #7b4ae2dd;
+        transform: translateY(-4px);
+    }
+
+
+.card-body .btn-lg {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-weight: 600;
+}
+/* Razmak i veličina dugmadi u meniju */
+#main-menu .card-body .row > div {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+    #main-menu .card-body .row > div > a.btn {
+        width: 100%; /* dugme puni prostor roditeljskog kolone */
+        height: 60px; /* ista visina za sva dugmad */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: 600; /* u skladu sa tvojim btn-lg */
+        box-shadow: 0 0 8px #7b4ae2aa; /* isto kao što imaš */
+        transition: all 0.3s ease;
+    }
+
+        #main-menu .card-body .row > div > a.btn:hover {
+            box-shadow: 0 0 15px #7b4ae2dd;
+            transform: translateY(-4px);
+        }

@@ -1,0 +1,346 @@
+// kol16aView.cpp : implementation of the Ckol16aView class
+//
+
+#include "pch.h"
+#include "framework.h"
+// SHARED_HANDLERS can be defined in an ATL project implementing preview, thumbnail
+// and search filter handlers and allows sharing of document code with that project.
+#ifndef SHARED_HANDLERS
+#include "kol16a.h"
+#endif
+
+#include "kol16aDoc.h"
+#include "kol16aView.h"
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
+
+
+// Ckol16aView
+
+IMPLEMENT_DYNCREATE(Ckol16aView, CView)
+
+BEGIN_MESSAGE_MAP(Ckol16aView, CView)
+	// Standard printing commands
+	ON_COMMAND(ID_FILE_PRINT, &CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
+	ON_WM_KEYDOWN()
+END_MESSAGE_MAP()
+
+// Ckol16aView construction/destruction
+
+Ckol16aView::Ckol16aView() noexcept
+{
+	drvo->Load(CString("wood.jpg"));
+	trava->Load(CString("felt2.jpg"));
+
+}
+
+Ckol16aView::~Ckol16aView()
+{
+	delete drvo;
+	delete trava;
+}
+
+BOOL Ckol16aView::PreCreateWindow(CREATESTRUCT& cs)
+{
+	// TODO: Modify the Window class or styles here by modifying
+	//  the CREATESTRUCT cs
+
+	return CView::PreCreateWindow(cs);
+}
+
+// Ckol16aView drawing
+
+void Ckol16aView::Translate(CDC* pDC, int dx, int dy, bool rightMultiply)
+{
+	XFORM xform;
+	xform.eM11 = 1;
+	xform.eM12 = 0;
+	xform.eM21 = 0;
+	xform.eM22 = 1;
+	xform.eDx = dx;
+	xform.eDy = dy;
+
+	if (rightMultiply) {
+		pDC->ModifyWorldTransform(&xform, MWT_RIGHTMULTIPLY);
+	}
+	else {
+		pDC->ModifyWorldTransform(&xform, MWT_LEFTMULTIPLY);
+	}
+}
+
+void Ckol16aView::Rotate(CDC* pDC, float angle, bool rightMultiply)
+{
+	XFORM xform;
+	xform.eM11 = cos(angle * 3.141592 / 180);
+	xform.eM12 = sin(angle * 3.141592 / 180);
+	xform.eM21 = -sin(angle * 3.141592 / 180);
+	xform.eM22 = cos(angle * 3.141592 / 180);
+	xform.eDx = 0;
+	xform.eDy = 0;
+
+	if (rightMultiply) {
+		pDC->ModifyWorldTransform(&xform, MWT_RIGHTMULTIPLY);
+	}
+	else {
+		pDC->ModifyWorldTransform(&xform, MWT_LEFTMULTIPLY);
+	}
+}
+
+void Ckol16aView::DrawStick(CDC* pDC, int w)
+{
+	//w je duzina stapa
+	//d je sirina
+	int d = w / 100;
+	CPen* olovka = new CPen(PS_SOLID, 1, RGB(64, 32, 0));
+	CPen* oldoolovka = pDC->SelectObject(olovka);
+	CBrush oker(RGB(255, 190, 128));
+	CBrush braon(RGB(64, 32, 0));
+
+	CBrush* oldcetka = pDC->SelectObject(&oker);
+	
+
+	//posto je sirina donjeg dela dva puta veca, zato nam je ovde d/2, a crtamo od 0,0, u koord pocetku
+	POINT tacke[4] = { CPoint(-d / 2,0),CPoint(d / 2,0),CPoint(d,w),CPoint(-d,w) };
+	pDC->Polygon(tacke, 4);
+
+	pDC->SelectObject(&braon);
+	POINT tacke1[4] = { CPoint(-d,2*w/3),CPoint(d,2*w/3),CPoint(d,w),CPoint(-d,w) };
+	//int y = 2 * w / 3;
+	//double x = d / 2 + y * (d / 2) / w;
+	//tacke[0].x = -x;
+//	tacke[0].y = y;
+	//tacke[1].x = x;
+	//tacke[1].y = y;
+	pDC->Polygon(tacke1, 4);
+	pDC->Ellipse(-d, w-d, d, w+d);
+
+	CPen bela(PS_SOLID, 1, RGB(255, 255, 255));
+
+	pDC->SelectObject(&bela);
+
+	pDC->MoveTo(-d/2+2, 0);
+	pDC->LineTo(-d + 2, w);
+
+
+	pDC->SelectObject(oldoolovka);
+	pDC->SelectObject(oldcetka);
+
+}
+
+void Ckol16aView::DrawBall(CDC* pDC, int w)
+{
+	//precnik w
+
+	CPen* olovka = new CPen(PS_SOLID, 1, RGB(64,0,0));
+	CPen* oldoolovka = pDC->SelectObject(olovka);
+	CBrush crvena(RGB(255, 0, 0));
+
+	CBrush* oldcetka = pDC->SelectObject(&crvena);
+
+	pDC->Ellipse(-w / 2, -w / 2, w / 2, w / 2);
+
+	CBrush bela(RGB(255, 255, 255));
+	pDC->SelectObject(&bela);
+
+	pDC->Ellipse(-w / 6-w/8, -w / 6-w/8, w / 6-w/8, w / 6-w/8);//oduzimamo da bismo je pomerili iz centra
+
+	pDC->SelectObject(oldoolovka);
+	pDC->SelectObject(oldcetka);
+
+
+
+}
+
+void Ckol16aView::DrawTable(CDC* pDC, CRect rect)
+{
+	//trava je mnogo manja od prozora zato je iscrtavamo nekoliko puta
+	CRgn rgn;
+	rgn.CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
+	pDC->SelectClipRgn(&rgn);
+
+	int w = trava->Width();
+	int h = trava->Height();
+	int i = rect.left; //odatle krecemo
+
+	while (i <= rect.right) {
+		int j = rect.top;
+		while (j <= rect.bottom) {
+			trava->Draw(pDC, CRect(0, 0, w, h), CRect(i, j, i + w, j + h));
+			j += h;
+		}
+		i += w;
+	}
+
+	pDC->SelectClipRgn(NULL);
+}
+
+void Ckol16aView::DrawBorder(CDC* pDC, CRect rect, int w)
+{
+	drvo->Draw(pDC, CRect(0, 0, drvo->Width(), drvo->Height()), rect);
+}
+
+void Ckol16aView::DrawHoles(CDC* pDC, CRect rect, int size)
+{
+	CBrush crna(RGB(0, 0, 0));
+	CBrush* oldb = pDC->SelectObject(&crna);
+
+	//size je precnik
+	int dx = size;
+	int dy = size;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2+dy);
+	dx = rect.Width() / 2;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2 + dy);
+	dx = rect.Width() -size;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2 + dy);
+	dy = rect.Height() - size;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2 + dy);
+	dx = rect.Width() / 2;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2 + dy);
+	dx = size;
+	pDC->Ellipse(-size / 2 + dx, -size / 2 + dy, size / 2 + dx, size / 2 + dy);
+
+
+	pDC->SelectObject(oldb);
+
+}
+
+
+void Ckol16aView::OnDraw(CDC* pDC)
+{
+	Ckol16aDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (!pDoc)
+		return;
+
+	CRect clientr;
+	GetClientRect(clientr);
+
+	CDC* memDC = new CDC();
+	memDC->CreateCompatibleDC(pDC);
+
+	CBitmap bmp;
+	bmp.CreateCompatibleBitmap(pDC, clientr.Width(), clientr.Height());
+	CBitmap* oldbmp = memDC->SelectObject(&bmp);
+
+	int gm = memDC->GetGraphicsMode();
+	memDC->SetGraphicsMode(GM_ADVANCED);
+
+	XFORM trans;
+	bool b=memDC->GetWorldTransform(&trans);
+
+
+	DrawBorder(memDC, clientr, clientr.Width());
+
+	int bw = 50;
+	CRect r2 = clientr;
+
+	r2.DeflateRect(bw, bw);
+
+	DrawTable(memDC, r2);
+
+	DrawHoles(memDC, clientr, 60);
+	
+	Translate(memDC, 0, -pomerajKugla, true);
+	Rotate(memDC, ugaoKugla, true);
+	Translate(memDC, 600, 400, true);
+	DrawBall(memDC, 30);
+
+	memDC->SetWorldTransform(&trans);
+
+	Translate(memDC, 0, 30/2+pomerajStap, true);
+	Rotate(memDC, ugaoStap, true);
+	Translate(memDC, 600, 400, true);
+	DrawStick(memDC, 600);
+
+
+	memDC->SetWorldTransform(&trans);
+	memDC->SetGraphicsMode(gm);
+	pDC->BitBlt(0, 0, clientr.Width(), clientr.Height(), memDC, 0, 0, SRCCOPY);
+	memDC->DeleteDC();
+	delete memDC;
+}
+
+
+// Ckol16aView printing
+
+BOOL Ckol16aView::OnPreparePrinting(CPrintInfo* pInfo)
+{
+	// default preparation
+	return DoPreparePrinting(pInfo);
+}
+
+void Ckol16aView::OnBeginPrinting(CDC* /pDC/, CPrintInfo* /pInfo/)
+{
+	// TODO: add extra initialization before printing
+}
+
+void Ckol16aView::OnEndPrinting(CDC* /pDC/, CPrintInfo* /pInfo/)
+{
+	// TODO: add cleanup after printing
+}
+
+
+// Ckol16aView diagnostics
+
+#ifdef _DEBUG
+void Ckol16aView::AssertValid() const
+{
+	CView::AssertValid();
+}
+
+void Ckol16aView::Dump(CDumpContext& dc) const
+{
+	CView::Dump(dc);
+}
+
+Ckol16aDoc* Ckol16aView::GetDocument() const // non-debug version is inline
+{
+	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(Ckol16aDoc)));
+	return (Ckol16aDoc*)m_pDocument;
+}
+#endif //_DEBUG
+
+
+// Ckol16aView message handlers
+
+
+void Ckol16aView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	if (nChar == VK_RIGHT) {
+		ugaoStap += 10;
+		Invalidate();
+	}
+	if (nChar == VK_LEFT) {
+		ugaoStap -= 10;
+		Invalidate();
+
+	}
+
+	if (nChar == VK_UP) {
+		if (pomerajStap == 0 && pomerajKugla == 0)
+			ugaoKugla = ugaoStap;
+		if (pomerajStap > 0)
+			pomerajStap -= 10;
+		else
+			pomerajKugla += 10;
+
+		Invalidate();
+
+	}
+
+	if (nChar == VK_DOWN) {
+		if (pomerajKugla > 0)
+			pomerajKugla -= 10;
+		else
+			pomerajStap += 10;
+
+		Invalidate();
+
+	}
+
+	CView::OnKeyDown(nChar, nRepCnt, nFlags);
+}
