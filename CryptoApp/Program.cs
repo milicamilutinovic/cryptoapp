@@ -1,6 +1,7 @@
 ﻿using CryptoApp.Models;
 using CryptoApp.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,8 @@ builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
+var env = app.Environment;
+
 // Configure HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
@@ -32,6 +35,13 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(env.WebRootPath, "received")),
+    RequestPath = "/received"
+});
 
 app.UseRouting();
 

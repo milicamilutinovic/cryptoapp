@@ -124,3 +124,16 @@
 {
     <p class="status-message">@Model.StatusMessage</p>
 }
+@if (Model.IsListening && Model.ReceivedFiles.Count > 0)
+{
+    <h3>Primljeni fajlovi:</h3>
+    <ul>
+        @foreach (var file in Model.ReceivedFiles)
+        {
+            <li>
+                @file - <a href="@Url.Content("~/received/" + file)" download>Preuzmi</a>
+            </li>
+        }
+    </ul>
+}
+

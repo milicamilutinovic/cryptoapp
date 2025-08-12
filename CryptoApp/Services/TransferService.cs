@@ -30,10 +30,21 @@ namespace CryptoApp.Services
                 using BinaryWriter writer = new BinaryWriter(stream);
 
                 string fileName = Path.GetFileName(filePath);
-                byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+                byte[] fileBytes;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    using var ms = new MemoryStream();
+                    await fs.CopyToAsync(ms);
+                    fileBytes = ms.ToArray();
+                }
+
 
                 // Računanje hash vrednosti
-                byte[] hash = SHA256.Create().ComputeHash(fileBytes);
+                //byte[] hash = SHA256.Create().ComputeHash(fileBytes);
+                var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
+
+                // 2️⃣ Računamo hash vrednost pomoću Blake2b umesto SHA256
+                byte[] hash = blakeHasher.HashBytes(fileBytes);
 
                 // (Opcionalno) Enkripcija
                 byte[] encryptedData = fileBytes; // Zameni sa Encrypt(fileBytes) ako koristiš enkripciju
@@ -82,7 +93,13 @@ namespace CryptoApp.Services
 
                 byte[] decryptedData = encryptedData; // Zameni sa Decrypt(encryptedData) ako koristiš dekripciju
 
-                byte[] localHash = SHA256.Create().ComputeHash(decryptedData);
+                //byte[] localHash = SHA256.Create().ComputeHash(decryptedData);
+                // 1️⃣ Kreiramo BlakeHasher instancu sa ISTIM ključem
+                var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
+
+                // 2️⃣ Računamo hash primljenog fajla pomoću Blake2b
+                byte[] localHash = blakeHasher.HashBytes(decryptedData);
+
 
                 bool isValid = StructuralComparisons.StructuralEqualityComparer.Equals(localHash, receivedHash);
 

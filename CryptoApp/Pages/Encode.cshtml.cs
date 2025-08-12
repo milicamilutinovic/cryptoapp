@@ -4,6 +4,8 @@ using CryptoApp.Services;
 using System;
 using System.IO;
 using System.Text;
+using CryptoApp.Models;
+using Microsoft.Extensions.Options;
 
 namespace CryptoApp.Pages
 {
@@ -11,11 +13,13 @@ namespace CryptoApp.Pages
     {
         private readonly CryptoService _cryptoService;
         private readonly IWebHostEnvironment _env;
+        private readonly AppSettings _settings;
 
-        public EncodeModel(CryptoService cryptoService, IWebHostEnvironment env)
+        public EncodeModel(CryptoService cryptoService, IWebHostEnvironment env, IOptions<AppSettings> options)
         {
             _cryptoService = cryptoService;
             _env = env;
+            _settings = options.Value;
         }
 
         [BindProperty]
@@ -49,33 +53,42 @@ namespace CryptoApp.Pages
                 UploadedFile.CopyTo(ms);
                 byte[] fileBytes = ms.ToArray();
 
-                // Pretvaranje ključa u bajtove (ovde jednostavno UTF8)
+                // Pretvaranje ključa u bajtove
                 byte[] keyBytes = Encoding.UTF8.GetBytes(Key);
 
-                // Ako koristiš CBC algoritam, možeš ovde dodati inicijalizacijski vektor (iv)
+                // IV samo ako je XTEA-CBC
                 byte[] iv = null;
                 if (Algorithm == "XTEA-CBC")
                 {
-                    // Primer: fiksni IV (u realnoj aplikaciji generiši nasumični IV i sačuvaj ga zajedno sa fajlom)
-                    iv = new byte[8]; // XTEA block size je 8 bajtova
+                    iv = new byte[8];
                     Array.Copy(keyBytes, iv, Math.Min(keyBytes.Length, iv.Length));
                 }
 
                 // Šifrovanje
                 byte[] encryptedData = _cryptoService.Encrypt(fileBytes, Algorithm, keyBytes, iv);
 
-                // Snimanje fajla u wwwroot/encrypted (kreiraj ovaj folder)
-                var saveDir = Path.Combine(_env.WebRootPath, "encrypted");
-                if (!Directory.Exists(saveDir))
-                    Directory.CreateDirectory(saveDir);
+                // 1️⃣ Snimanje u encrypted folder
+                var encryptedDir = Path.Combine(_env.WebRootPath, "encrypted");
+                if (!Directory.Exists(encryptedDir))
+                    Directory.CreateDirectory(encryptedDir);
 
                 var fileName = Path.GetFileNameWithoutExtension(UploadedFile.FileName) + "_enc" + Path.GetExtension(UploadedFile.FileName);
-                var filePath = Path.Combine(saveDir, fileName);
+                var encryptedPath = Path.Combine(encryptedDir, fileName);
 
-                System.IO.File.WriteAllBytes(filePath, encryptedData);
+                System.IO.File.WriteAllBytes(encryptedPath, encryptedData);
 
-                // Sačuvaj relativnu putanju za prikaz u linku za preuzimanje
+                // Relativna putanja za prikaz
                 EncryptedFilePath = Path.Combine("encrypted", fileName).Replace("\\", "/");
+
+                // 2️⃣ Ako je FileWatcher uključen — snimi i u TargetDirectory
+                if (_settings.IsFileExchangeEnabled && !string.IsNullOrWhiteSpace(_settings.TargetDirectory))
+                {
+                    if (!Directory.Exists(_settings.TargetDirectory))
+                        Directory.CreateDirectory(_settings.TargetDirectory);
+
+                    var watchedPath = Path.Combine(_settings.TargetDirectory, fileName);
+                    System.IO.File.WriteAllBytes(watchedPath, encryptedData);
+                }
             }
             catch (Exception ex)
             {
@@ -84,5 +97,6 @@ namespace CryptoApp.Pages
 
             return Page();
         }
+
     }
 }
