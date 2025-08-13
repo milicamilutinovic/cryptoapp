@@ -73,15 +73,22 @@ namespace CryptoApp.Pages
                     return Page();
                 }
 
-                // Sačuvaj fajl privremeno na serveru
                 var tempFile = Path.Combine(_env.WebRootPath, "uploads", UploadFile.FileName);
                 Directory.CreateDirectory(Path.GetDirectoryName(tempFile));
-                using var stream = new FileStream(tempFile, FileMode.Create);
-                await UploadFile.CopyToAsync(stream);
 
-                await _transferService.SendFileAsync(tempFile, IpAddress, Port);
-                StatusMessage = "Fajl uspešno poslat.";
+                using (var fileStream = new FileStream(tempFile, FileMode.Create))
+                {
+                    await UploadFile.CopyToAsync(fileStream);
+                }
+
+                // Pozovi SendFileAsync sa callback funkcijom koja ažurira StatusMessage
+                await _transferService.SendFileAsync(tempFile, IpAddress, Port, msg =>
+                {
+                    StatusMessage = msg;
+                });
             }
+
+
 
             // Ažuriraj listu primljenih fajlova ako slušaš
             if (IsListening)
@@ -103,5 +110,20 @@ namespace CryptoApp.Pages
 
             return Page();
         }
+        public JsonResult OnGetReceivedFiles()
+        {
+            var receivedDir = Path.Combine(_env.WebRootPath, "received");
+            List<string> files = new();
+
+            if (Directory.Exists(receivedDir))
+            {
+                files = Directory.GetFiles(receivedDir)
+                                 .Select(Path.GetFileName)
+                                 .ToList();
+            }
+
+            return new JsonResult(files);
+        }
+
     }
 }

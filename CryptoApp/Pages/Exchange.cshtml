@@ -93,7 +93,78 @@
         font-size: 1.1rem;
         text-align: center;
     }
+
+    /* Dugmići za slušanje */
+    form button[type="submit"] {
+        width: 48%;
+        padding: 1rem 0;
+        border: none;
+        border-radius: 50px;
+        background: linear-gradient(45deg, #7b4ae2, #9f7eff);
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 0 15px #7b4ae2aa;
+        transition: all 0.3s ease;
+        margin-top: 0.5rem;
+    }
+
+        form button[type="submit"]:hover:not(:disabled) {
+            box-shadow: 0 0 25px #9f7effcc;
+            transform: scale(1.05);
+        }
+
+    form button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Lista fajlova */
+    .received-container {
+        margin-top: 2rem;
+        padding: 1rem;
+        background: #121212;
+        border: 1px solid #7b4ae2;
+        border-radius: 12px;
+        box-shadow: 0 0 10px #7b4ae255;
+    }
+
+    .file-list {
+        list-style: none;
+        padding: 0;
+    }
+
+        .file-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #333;
+        }
+
+    .file-name {
+        color: #eee;
+        font-weight: 500;
+    }
+
+    .download-btn {
+        background: linear-gradient(45deg, #4ae27b, #7eff9f);
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        color: #000;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+        .download-btn:hover {
+            box-shadow: 0 0 10px #7eff9fbb;
+            transform: scale(1.05);
+        }
 </style>
+
+
 
 <h1>Razmena fajlova (TCP)</h1>
 
@@ -122,16 +193,56 @@
 {
     <p class="status-message">@Model.StatusMessage</p>
 }
-@if (Model.IsListening && Model.ReceivedFiles.Count > 0)
+@if (Model.IsListening)
 {
-    <h3>Primljeni fajlovi:</h3>
-    <ul>
-        @foreach (var file in Model.ReceivedFiles)
-        {
-            <li>
-                @file - <a href="@Url.Content("~/received/" + file)" download>Preuzmi</a>
-            </li>
+    <div class="received-container">
+        <h3>Primljeni fajlovi:</h3>
+        <ul id="receivedFilesList" class="file-list">
+            @foreach (var file in Model.ReceivedFiles)
+            {
+                <li>
+                    <span class="file-name">@file</span>
+                    <a class="download-btn" href="~/received/@file" download>⬇ Preuzmi</a>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <script>
+        async function fetchReceivedFiles() {
+            try {
+                const response = await fetch('/Exchange?handler=ReceivedFiles');
+                const files = await response.json();
+
+                const list = document.getElementById('receivedFilesList');
+                list.innerHTML = ''; // očisti staru listu
+
+                files.forEach(file => {
+                    const li = document.createElement('li');
+
+                    const span = document.createElement('span');
+                    span.className = 'file-name';
+                    span.textContent = file;
+
+                    const link = document.createElement('a');
+                    link.className = 'download-btn';
+                    link.href = `/received/${file}`;
+                    link.download = file;
+                    link.textContent = '⬇ Preuzmi';
+
+                    li.appendChild(span);
+                    li.appendChild(link);
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Greška prilikom osvežavanja liste:', err);
+            }
         }
-    </ul>
+
+        // osvežava listu svakih 2 sekunde
+        setInterval(fetchReceivedFiles, 2000);
+    </script>
 }
+
+
 

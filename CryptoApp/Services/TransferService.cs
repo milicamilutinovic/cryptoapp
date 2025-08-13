@@ -19,53 +19,66 @@ namespace CryptoApp.Services
             _settings = options.Value;
         }
 
-        public async Task SendFileAsync(string filePath, string ipAddress, int port)
+        public async Task<bool> SendFileAsync(string filePath, string ipAddress, int port, Action<string> statusCallback, int maxRetries = 5, int delayMs = 2000)
         {
-            try
+            byte[] fileBytes;
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                using TcpClient client = new TcpClient();
-                await client.ConnectAsync(ipAddress, port);
+                using var ms = new MemoryStream();
+                await fs.CopyToAsync(ms);
+                fileBytes = ms.ToArray();
+            }
 
-                using NetworkStream stream = client.GetStream();
-                using BinaryWriter writer = new BinaryWriter(stream);
+            if (fileBytes == null || fileBytes.Length == 0)
+            {
+                statusCallback?.Invoke($"Fajl '{filePath}' je prazan ili nije moguće pročitati.");
+                return false;
+            }
 
-                string fileName = Path.GetFileName(filePath);
-                byte[] fileBytes;
-                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            int attempt = 0;
+            while (attempt < maxRetries)
+            {
+                try
                 {
-                    using var ms = new MemoryStream();
-                    await fs.CopyToAsync(ms);
-                    fileBytes = ms.ToArray();
+                    using TcpClient client = new TcpClient();
+                    await client.ConnectAsync(ipAddress, port);
+
+                    using NetworkStream stream = client.GetStream();
+                    using BinaryWriter writer = new BinaryWriter(stream);
+
+                    string fileName = Path.GetFileName(filePath);
+                    var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
+                    byte[] hash = blakeHasher.HashBytes(fileBytes);
+                    byte[] encryptedData = fileBytes;
+
+                    writer.Write(fileName);
+                    writer.Write((long)fileBytes.Length);
+                    writer.Write(hash.Length);
+                    writer.Write(hash);
+                    writer.Write(encryptedData.Length);
+                    writer.Write(encryptedData);
+
+                    await stream.FlushAsync();
+                    statusCallback?.Invoke($"Fajl '{fileName}' uspešno poslat.");
+                    return true; // uspešno poslato
                 }
-
-
-                // Računanje hash vrednosti
-                //byte[] hash = SHA256.Create().ComputeHash(fileBytes);
-                var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
-
-                // 2️⃣ Računamo hash vrednost pomoću Blake2b umesto SHA256
-                byte[] hash = blakeHasher.HashBytes(fileBytes);
-
-                // (Opcionalno) Enkripcija
-                byte[] encryptedData = fileBytes; // Zameni sa Encrypt(fileBytes) ako koristiš enkripciju
-
-                // Slanje podataka
-                writer.Write(fileName);                           // Ime fajla
-                writer.Write((long)fileBytes.Length);             // Veličina originalnog fajla
-                writer.Write(hash.Length);                        // Dužina heš vrednosti
-                writer.Write(hash);                               // Heš vrednost
-                writer.Write(encryptedData.Length);               // Veličina kodiranog sadržaja
-                writer.Write(encryptedData);                      // Kodirani sadržaj
-
-                await stream.FlushAsync(); // Obavezno osiguraj da je sve poslato
-
-                Console.WriteLine($"Fajl '{fileName}' uspešno poslat.");
+                catch (SocketException)
+                {
+                    attempt++;
+                    if (attempt >= maxRetries)
+                    {
+                        statusCallback?.Invoke("Niko ne sluša na ovom portu, fajl nije poslat.");
+                        return false;
+                    }
+                    statusCallback?.Invoke($"Primalac nedostupan, pokušavam ponovo ({attempt}/{maxRetries})...");
+                    await Task.Delay(delayMs);
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Greška prilikom slanja: " + ex.Message);
-            }
+
+            return false;
         }
+
+
 
         public async Task ReceiveFilesLoopAsync(string saveDirectory, int listenPort, CancellationToken token)
         {
