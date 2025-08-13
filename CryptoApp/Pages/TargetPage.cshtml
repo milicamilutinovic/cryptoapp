@@ -1,0 +1,112 @@
+﻿@page
+@model CryptoApp.Pages.TargetPage
+@{
+    ViewData["Title"] = "Target / Encrypt";
+}
+
+
+<style>
+    .target-section {
+        padding: 2rem;
+        background-color: #1e1e2f;
+        color: #eee;
+        border-radius: 12px;
+        max-width: 800px;
+        margin: auto;
+        box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    }
+
+        .target-section h1 {
+            color: #7b4ae2;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .target-section table th,
+        .target-section table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #444;
+        }
+
+        .target-section button {
+            background-color: #7b4ae2;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+            .target-section button:hover {
+                background-color: #9f7eff;
+            }
+
+        .target-section a {
+            color: #9f7eff;
+            text-decoration: none;
+        }
+
+            .target-section a:hover {
+                text-decoration: underline;
+            }
+</style>
+
+<div class="target-section">
+    <h1>Target / Encrypt</h1>
+  
+
+    @if (Model.IsFileWatcherEnabled)
+    {
+        <form method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">Izaberite fajl za upload u Target:</label>
+                <input type="file" name="UploadFile" class="form-control bg-dark text-light" />
+            </div>
+
+            <div class="mb-3">
+                <button type="submit">Dodaj u Target i automatski enkriptuj</button>
+            </div>
+        </form>
+
+        <p style="color:#9f7eff">@Html.Raw(Model.StatusMessage)</p>
+
+
+        <hr />
+
+        <h3>Enkriptovani fajlovi (X)</h3>
+        @if (Model.EncryptedFiles.Count == 0)
+        {
+            <p>Nema enkriptovanih fajlova.</p>
+        }
+        else
+        {
+            <table style="width:100%;color:#eee">
+                <thead><tr><th>Ime</th><th>Akcije</th></tr></thead>
+                <tbody>
+                    @foreach (var f in Model.EncryptedFiles)
+                    {
+                        <tr>
+                            <td>@f</td>
+                            <td>
+                                <form method="post" style="display:inline">
+                                    <input type="hidden" name="fileName" value="@f" />
+                                    <button type="submit" name="action" value="Decrypt">Dešifruj</button>
+                                </form>
+                                &nbsp;
+                                <a href="@Url.Content("~/encrypted/" + f)">Preuzmi</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+    else
+    {
+        <p style="color:yellow; font-weight:bold;">
+            FileWatcher nije uključen.<br />
+            Molimo vas da u podešavanjima aplikacije uključite FileWatcher kako biste mogli da dodajete fajlove i vidite listu.
+        </p>
+    }
+</div>
+

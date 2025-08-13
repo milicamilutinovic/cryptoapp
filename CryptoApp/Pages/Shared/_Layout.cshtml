@@ -36,6 +36,12 @@
                             <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Decode" ? "active" : "")" asp-page="/Decode">Dešifrovanje</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Target" ? "active" : "")" asp-page="/TargetPage">
+                                Target / Encrypt
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
                             <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Settings" ? "active" : "")" asp-page="/Settings">Podešavanja</a>
                         </li>
                         <li class="nav-item">

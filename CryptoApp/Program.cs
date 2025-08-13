@@ -10,6 +10,7 @@ builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSet
 
 // Registruj servise
 builder.Services.AddScoped<CryptoService>();
+builder.Services.AddScoped<EncryptionHelper>();
 builder.Services.AddHostedService<FileWatcherService>();
 builder.Services.AddTransient<TransferService>();
 
@@ -21,6 +22,9 @@ builder.Services.Configure<FormOptions>(options =>
 
 // Razor Pages
 builder.Services.AddRazorPages();
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+
 
 var app = builder.Build();
 

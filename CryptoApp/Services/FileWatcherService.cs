@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace CryptoApp.Services
 {
@@ -46,7 +47,8 @@ namespace CryptoApp.Services
             return Task.CompletedTask;
         }
 
-        private void OnFileCreated(object sender, FileSystemEventArgs e)
+        // (u FileWatcherService klase)
+        private async void OnFileCreated(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"Novi fajl detektovan: {e.FullPath}");
 
@@ -56,49 +58,11 @@ namespace CryptoApp.Services
                     Thread.Sleep(100);
 
                 using var scope = _scopeFactory.CreateScope();
-                var cryptoService = scope.ServiceProvider.GetRequiredService<CryptoService>();
+                var encryptionHelper = scope.ServiceProvider.GetRequiredService<EncryptionHelper>();
 
-                byte[] fileBytes = File.ReadAllBytes(e.FullPath);
+                await encryptionHelper.EncryptAndSaveFileAsync(e.FullPath);
 
-                // Priprema ključa i IV
-                string keyText = _settings.SelectedEncryptionAlgorithm.PadRight(16).Substring(0, 16);
-                byte[] key = System.Text.Encoding.UTF8.GetBytes(keyText);
-                byte[] iv = new byte[8];
-
-                // Šifrovanje
-                byte[] encrypted = cryptoService.Encrypt(fileBytes, _settings.SelectedEncryptionAlgorithm, key, iv);
-
-                string encryptedFileName = Path.GetFileName(e.FullPath);
-                string outputPath = Path.Combine(_settings.EncryptedFilesDirectory, encryptedFileName);
-
-                Directory.CreateDirectory(_settings.EncryptedFilesDirectory); // kreira ako ne postoji
-
-
-                File.WriteAllBytes(outputPath, encrypted);
-               
-
-                // Hash ključa (radi kasnije verifikacije)
-                /*var hasher = new BlakeHasher("meta");  // možeš staviti bilo šta, jer se koristi samo za hashiranje ključa
-                string keyHash = hasher.HashString(keyText);
-
-                // Kreiranje .meta fajla
-                var meta = new
-                {
-                    OriginalFileName = encryptedFileName,
-                    Algorithm = _settings.SelectedEncryptionAlgorithm,
-                    KeyHash = keyHash,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                string metaJson = System.Text.Json.JsonSerializer.Serialize(meta, new System.Text.Json.JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                string metaPath = outputPath + ".meta";
-                File.WriteAllText(metaPath, metaJson);*/
-
-                Console.WriteLine($"Fajl {e.Name} uspešno šifrovan");
+                Console.WriteLine($"Fajl {e.Name} uspešno šifrovan i meta sačuvan.");
             }
             catch (Exception ex)
             {
@@ -112,7 +76,7 @@ namespace CryptoApp.Services
         {
             try
             {
-                using var stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                using var stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None);
                 return false;
             }
             catch (IOException)
@@ -120,5 +84,6 @@ namespace CryptoApp.Services
                 return true;
             }
         }
+
     }
 }

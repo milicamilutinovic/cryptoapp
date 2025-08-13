@@ -67,7 +67,7 @@ namespace CryptoApp.Pages
                 // Šifrovanje
                 byte[] encryptedData = _cryptoService.Encrypt(fileBytes, Algorithm, keyBytes, iv);
 
-                // 1️⃣ Snimanje u encrypted folder
+                // 1️ Snimanje u encrypted folder
                 var encryptedDir = Path.Combine(_env.WebRootPath, "encrypted");
                 if (!Directory.Exists(encryptedDir))
                     Directory.CreateDirectory(encryptedDir);
@@ -80,7 +80,7 @@ namespace CryptoApp.Pages
                 // Relativna putanja za prikaz
                 EncryptedFilePath = Path.Combine("encrypted", fileName).Replace("\\", "/");
 
-                // 2️⃣ Ako je FileWatcher uključen — snimi i u TargetDirectory
+                // 2️ Ako je FileWatcher uključen — snimi i u TargetDirectory
                 if (_settings.IsFileExchangeEnabled && !string.IsNullOrWhiteSpace(_settings.TargetDirectory))
                 {
                     if (!Directory.Exists(_settings.TargetDirectory))

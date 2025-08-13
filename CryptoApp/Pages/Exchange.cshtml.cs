@@ -32,12 +32,40 @@ namespace CryptoApp.Pages
         public List<string> ReceivedFiles { get; set; } = new();
         public bool IsListening { get; set; } = false;
 
-       
 
+
+        private CancellationTokenSource _cts;
 
         public async Task<IActionResult> OnPostAsync(string action)
         {
-            if (action == "Pošalji fajl")
+            if (action == "Slušaj za fajl")
+            {
+                var savePath = Path.Combine(_env.WebRootPath, "received");
+                Directory.CreateDirectory(savePath);
+
+                // Ako već sluša, ne pokreći opet
+                if (_cts == null)
+                {
+                    _cts = new CancellationTokenSource();
+
+                    // Pokreni slušanje u pozadini (bez await)
+                    _ = _transferService.ReceiveFilesLoopAsync(savePath, Port, _cts.Token);
+                }
+
+                StatusMessage = $"Slušanje pokrenuto na portu {Port}.";
+                IsListening = true;
+            }
+            else if (action == "Zaustavi slušanje")
+            {
+                if (_cts != null)
+                {
+                    _cts.Cancel();
+                    _cts = null;
+                    StatusMessage = "Slušanje je zaustavljeno.";
+                    IsListening = false;
+                }
+            }
+            else if (action == "Pošalji fajl")
             {
                 if (UploadFile == null || UploadFile.Length == 0)
                 {
@@ -53,18 +81,9 @@ namespace CryptoApp.Pages
 
                 await _transferService.SendFileAsync(tempFile, IpAddress, Port);
                 StatusMessage = "Fajl uspešno poslat.";
-                IsListening = false;
-            }
-            else if (action == "Slušaj za fajl")
-            {
-                var savePath = Path.Combine(_env.WebRootPath, "received");
-                Directory.CreateDirectory(savePath);
-
-                _ = Task.Run(() => _transferService.ReceiveFileAsync(savePath, Port));
-                StatusMessage = $"Slušanje pokrenuto na portu {Port}.";
-                IsListening = true;
             }
 
+            // Ažuriraj listu primljenih fajlova ako slušaš
             if (IsListening)
             {
                 var receivedDir = Path.Combine(_env.WebRootPath, "received");
@@ -84,6 +103,5 @@ namespace CryptoApp.Pages
 
             return Page();
         }
-
     }
 }

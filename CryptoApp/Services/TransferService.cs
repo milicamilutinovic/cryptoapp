@@ -67,62 +67,72 @@ namespace CryptoApp.Services
             }
         }
 
-        public async Task ReceiveFileAsync(string saveDirectory, int listenPort)
+        public async Task ReceiveFilesLoopAsync(string saveDirectory, int listenPort, CancellationToken token)
         {
-            TcpListener listener = null;
+            TcpListener listener = new TcpListener(IPAddress.Any, listenPort);
+            listener.Start();
 
             try
             {
-                listener = new TcpListener(IPAddress.Any, listenPort);
-                listener.Start();
-
-                Console.WriteLine($"Čekam fajl na portu {listenPort}...");
-
-                using TcpClient client = await listener.AcceptTcpClientAsync();
-                using NetworkStream stream = client.GetStream();
-                using BinaryReader reader = new BinaryReader(stream);
-
-                string fileName = reader.ReadString();
-                long originalSize = reader.ReadInt64();
-                int hashLength = reader.ReadInt32();
-                byte[] receivedHash = reader.ReadBytes(hashLength);
-                int encryptedLength = reader.ReadInt32();
-
-                // Čitaj direktno iz BinaryReader - on ima internu bafer funkciju
-                byte[] encryptedData = reader.ReadBytes(encryptedLength);
-
-                byte[] decryptedData = encryptedData; // Zameni sa Decrypt(encryptedData) ako koristiš dekripciju
-
-                //byte[] localHash = SHA256.Create().ComputeHash(decryptedData);
-                // 1️⃣ Kreiramo BlakeHasher instancu sa ISTIM ključem
-                var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
-
-                // 2️⃣ Računamo hash primljenog fajla pomoću Blake2b
-                byte[] localHash = blakeHasher.HashBytes(decryptedData);
-
-
-                bool isValid = StructuralComparisons.StructuralEqualityComparer.Equals(localHash, receivedHash);
-
-                if (!isValid)
+                while (!token.IsCancellationRequested)
                 {
-                    Console.WriteLine("Integritet fajla NIJE potvrđen. Fajl je možda oštećen.");
-                    return;
+                    try
+                    {
+                        using var client = await listener.AcceptTcpClientAsync();
+                        using var stream = client.GetStream();
+                        using var reader = new BinaryReader(stream);
+
+                        string fileName = reader.ReadString();
+                        long originalSize = reader.ReadInt64();
+                        int hashLength = reader.ReadInt32();
+                        byte[] receivedHash = reader.ReadBytes(hashLength);
+                        int encryptedLength = reader.ReadInt32();
+
+                        byte[] encryptedData = new byte[encryptedLength];
+                        int totalRead = 0;
+                        while (totalRead < encryptedLength)
+                        {
+                            int read = await stream.ReadAsync(encryptedData, totalRead, encryptedLength - totalRead, token);
+                            if (read == 0)
+                                throw new EndOfStreamException("Prekidan stream tokom čitanja fajla.");
+                            totalRead += read;
+                        }
+
+                        byte[] decryptedData = encryptedData; // Dekripcija ako treba
+
+                        var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
+                        byte[] localHash = blakeHasher.HashBytes(decryptedData);
+
+                        bool isValid = StructuralComparisons.StructuralEqualityComparer.Equals(localHash, receivedHash);
+
+                        if (!isValid)
+                        {
+                            Console.WriteLine("Integritet fajla NIJE potvrđen. Fajl je možda oštećen.");
+                            continue; // nastavi sa sledećim fajlom, ne prekidaj petlju
+                        }
+
+                        Directory.CreateDirectory(saveDirectory);
+                        string fullPath = Path.Combine(saveDirectory, fileName);
+                        await File.WriteAllBytesAsync(fullPath, decryptedData);
+
+                        Console.WriteLine($"Fajl '{fileName}' primljen i sačuvan u {fullPath}");
+                    }
+                    catch (Exception exInner)
+                    {
+                        Console.WriteLine("Greška prilikom obrade jednog fajla: " + exInner.Message);
+                        // Možeš logovati i stack trace ako želiš
+                    }
                 }
-
-                Directory.CreateDirectory(saveDirectory);
-                string fullPath = Path.Combine(saveDirectory, fileName);
-                await File.WriteAllBytesAsync(fullPath, decryptedData);
-
-                Console.WriteLine($"Fajl '{fileName}' primljen i sačuvan u {fullPath}");
             }
-            catch (Exception ex)
+            catch (Exception exOuter)
             {
-                Console.WriteLine("Greška u prijemu fajla: " + ex.Message);
+                Console.WriteLine("Greška u listen loop-u: " + exOuter.Message);
             }
             finally
             {
                 listener?.Stop();
             }
         }
+
     }
 }

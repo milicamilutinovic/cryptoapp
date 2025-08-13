@@ -112,12 +112,10 @@
     <hr />
 
     <form method="post">
-        <h3>Pokreni slušanje:</h3>
-        <label for="Port">Port:</label>
-        <input type="number" id="Port" name="Port" value="9000" min="1" max="65535" />
-
-        <input type="submit" name="action" value="Slušaj za fajl" />
+        <button type="submit" name="action" value="Slušaj za fajl" @(Model.IsListening ? "disabled" : "")>Slušaj za fajl</button>
+        <button type="submit" name="action" value="Zaustavi slušanje" @(Model.IsListening ? "" : "disabled")>Zaustavi slušanje</button>
     </form>
+
 </div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
