@@ -5,7 +5,7 @@ using System.Collections;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CryptoApp.Services
@@ -13,27 +13,35 @@ namespace CryptoApp.Services
     public class TransferService
     {
         private readonly AppSettings _settings;
+        private readonly EncryptionHelper _encryptionHelper;
 
-        public TransferService(IOptions<AppSettings> options)
+        public TransferService(IOptions<AppSettings> options, EncryptionHelper encryptionHelper)
         {
             _settings = options.Value;
+            _encryptionHelper = encryptionHelper;
         }
 
+        // -------------------- SLANJE --------------------
         public async Task<bool> SendFileAsync(string filePath, string ipAddress, int port, Action<string> statusCallback, int maxRetries = 5, int delayMs = 2000)
         {
-            byte[] fileBytes;
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            if (!File.Exists(filePath))
             {
-                using var ms = new MemoryStream();
-                await fs.CopyToAsync(ms);
-                fileBytes = ms.ToArray();
-            }
-
-            if (fileBytes == null || fileBytes.Length == 0)
-            {
-                statusCallback?.Invoke($"Fajl '{filePath}' je prazan ili nije moguće pročitati.");
+                statusCallback?.Invoke($"Fajl '{filePath}' ne postoji.");
                 return false;
             }
+
+            // 1. Enkripcija fajla (postojeća metoda)
+            string encryptedPath = await _encryptionHelper.EncryptAndSaveFileAsync(filePath, _settings.SelectedEncryptionAlgorithm);
+
+            string metaPath = encryptedPath + ".meta";
+            if (!File.Exists(metaPath))
+            {
+                statusCallback?.Invoke("Meta fajl nije pronađen nakon enkripcije.");
+                return false;
+            }
+
+            byte[] encryptedData = await File.ReadAllBytesAsync(encryptedPath);
+            byte[] metaData = await File.ReadAllBytesAsync(metaPath);
 
             int attempt = 0;
             while (attempt < maxRetries)
@@ -42,25 +50,25 @@ namespace CryptoApp.Services
                 {
                     using TcpClient client = new TcpClient();
                     await client.ConnectAsync(ipAddress, port);
-
                     using NetworkStream stream = client.GetStream();
-                    using BinaryWriter writer = new BinaryWriter(stream);
+                    using var writer = new BinaryWriter(stream);
 
-                    string fileName = Path.GetFileName(filePath);
-                    var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
-                    byte[] hash = blakeHasher.HashBytes(fileBytes);
-                    byte[] encryptedData = fileBytes;
+                    string originalFileName = Path.GetFileName(filePath);
 
-                    writer.Write(fileName);
-                    writer.Write((long)fileBytes.Length);
-                    writer.Write(hash.Length);
-                    writer.Write(hash);
-                    writer.Write(encryptedData.Length);
+                    // --- Slanje imena fajla ---
+                    writer.Write(originalFileName);
+
+                    // --- Slanje enkriptovanog fajla ---
+                    writer.Write((long)encryptedData.Length); // long: veličina enkriptovanog fajla
                     writer.Write(encryptedData);
 
+                    // --- Slanje meta fajla ---
+                    writer.Write((long)metaData.Length);      // long: veličina meta fajla
+                    writer.Write(metaData);
+
                     await stream.FlushAsync();
-                    statusCallback?.Invoke($"Fajl '{fileName}' uspešno poslat.");
-                    return true; // uspesno poslato
+                    statusCallback?.Invoke($"Fajl '{originalFileName}' uspešno poslat.");
+                    return true;
                 }
                 catch (SocketException)
                 {
@@ -80,6 +88,7 @@ namespace CryptoApp.Services
 
 
 
+        // -------------------- PRIJEM --------------------
         public async Task ReceiveFilesLoopAsync(string saveDirectory, int listenPort, CancellationToken token)
         {
             TcpListener listener = new TcpListener(IPAddress.Any, listenPort);
@@ -89,63 +98,53 @@ namespace CryptoApp.Services
             {
                 while (!token.IsCancellationRequested)
                 {
+                    using var client = await listener.AcceptTcpClientAsync();
+                    using var stream = client.GetStream();
+                    using var reader = new BinaryReader(stream);
+
                     try
                     {
-                        using var client = await listener.AcceptTcpClientAsync();
-                        using var stream = client.GetStream();
-                        using var reader = new BinaryReader(stream);
-
+                        // --- Primanje imena fajla ---
                         string fileName = reader.ReadString();
-                        long originalSize = reader.ReadInt64();
-                        int hashLength = reader.ReadInt32();
-                        byte[] receivedHash = reader.ReadBytes(hashLength);
-                        int encryptedLength = reader.ReadInt32();
 
-                        byte[] encryptedData = new byte[encryptedLength];
-                        int totalRead = 0;
-                        while (totalRead < encryptedLength)
-                        {
-                            int read = await stream.ReadAsync(encryptedData, totalRead, encryptedLength - totalRead, token);
-                            if (read == 0)
-                                throw new EndOfStreamException("Prekidan stream tokom čitanja fajla.");
-                            totalRead += read;
-                        }
+                        // --- Primanje enkriptovanog fajla ---
+                        long encryptedLength = reader.ReadInt64();
+                        byte[] encryptedData = reader.ReadBytes((int)encryptedLength);
 
-                        byte[] decryptedData = encryptedData; // dekripcija ako treba
+                        // --- Privremeni fajl za enkriptovani sadržaj ---
+                        string tempEncryptedPath = Path.Combine(Path.GetTempPath(), fileName);
+                        await File.WriteAllBytesAsync(tempEncryptedPath, encryptedData);
 
-                        var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
-                        byte[] localHash = blakeHasher.HashBytes(decryptedData);
+                        // --- Primanje meta fajla ---
+                        long metaLength = reader.ReadInt64();
+                        byte[] metaData = reader.ReadBytes((int)metaLength);
+                        string tempMetaPath = tempEncryptedPath + ".meta";
+                        await File.WriteAllBytesAsync(tempMetaPath, metaData);
 
-                        bool isValid = StructuralComparisons.StructuralEqualityComparer.Equals(localHash, receivedHash);
-
-                        if (!isValid)
-                        {
-                            Console.WriteLine("Integritet fajla NIJE potvrđen. Fajl je možda oštećen.");
-                            continue; // nastavi sa sledecim fajlom, ne prekidaj petlju
-                        }
-
+                        // --- Folder gde UI gleda fajlove (saveDirectory) ---
                         Directory.CreateDirectory(saveDirectory);
-                        string fullPath = Path.Combine(saveDirectory, fileName);
-                        await File.WriteAllBytesAsync(fullPath, decryptedData);
 
-                        Console.WriteLine($"Fajl '{fileName}' primljen i sačuvan u {fullPath}");
+                        // --- Dekripcija direktno u saveDirectory ---
+                        await _encryptionHelper.DecryptAndSaveFileToDirectoryAsync(tempEncryptedPath, saveDirectory, fileName);
+
+                        // --- Obriši privremeni enkriptovani fajl i meta fajl ---
+                        File.Delete(tempEncryptedPath);
+                        File.Delete(tempMetaPath);
+
+                        Console.WriteLine($"Fajl '{fileName}' primljen, dekriptovan i sačuvan u '{saveDirectory}'.");
                     }
-                    catch (Exception exInner)
+                    catch (Exception ex)
                     {
-                        Console.WriteLine("Greška prilikom obrade jednog fajla: " + exInner.Message);
-                      
+                        Console.WriteLine("Greška prilikom obrade fajla: " + ex.Message);
                     }
                 }
             }
-            catch (Exception exOuter)
-            {
-                Console.WriteLine("Greška u listen loop-u: " + exOuter.Message);
-            }
             finally
             {
-                listener?.Stop();
+                listener.Stop();
             }
         }
+
 
     }
 }

@@ -37,7 +37,7 @@ namespace CryptoApp.Pages
         {
             var selectedAlgorithm = _settingsSnapshot.Value.SelectedEncryptionAlgorithm;
 
-            // Upload i šifrovanje
+            // upload i sifrovanje
             if (UploadFile != null && UploadFile.Length > 0)
             {
                 var targetDir = Path.Combine(_env.WebRootPath, _settingsSnapshot.Value.EncryptedFilesDirectory);
@@ -49,7 +49,7 @@ namespace CryptoApp.Pages
                     await UploadFile.CopyToAsync(fs);
                 }
 
-                // Prosledi izabrani algoritam
+                // prosledi izabrani algoritam
                 await _encryptionHelper.EncryptAndSaveFileAsync(savePath, selectedAlgorithm);
 
                 StatusMessage = $"Fajl snimljen i enkriptovan ({selectedAlgorithm}).";
@@ -57,7 +57,7 @@ namespace CryptoApp.Pages
                 return Page();
             }
 
-            // Dešifrovanje
+            // desifrovanje
             if (action == "Decrypt" && !string.IsNullOrEmpty(fileName))
             {
                 string decodedDir = Path.Combine(_env.WebRootPath, "decoded");

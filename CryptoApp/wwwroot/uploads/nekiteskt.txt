@@ -1,0 +1,250 @@
+// zad8knjigaView.cpp : implementation of the Czad8knjigaView class
+//
+
+#include "pch.h"
+#include "framework.h"
+// SHARED_HANDLERS can be defined in an ATL project implementing preview, thumbnail
+// and search filter handlers and allows sharing of document code with that project.
+#ifndef SHARED_HANDLERS
+#include "zad8knjiga.h"
+#endif
+
+#include "zad8knjigaDoc.h"
+#include "zad8knjigaView.h"
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
+
+
+// Czad8knjigaView
+
+IMPLEMENT_DYNCREATE(Czad8knjigaView, CView)
+
+BEGIN_MESSAGE_MAP(Czad8knjigaView, CView)
+	// Standard printing commands
+	ON_COMMAND(ID_FILE_PRINT, &CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
+	ON_WM_KEYDOWN()
+END_MESSAGE_MAP()
+
+// Czad8knjigaView construction/destruction
+
+Czad8knjigaView::Czad8knjigaView() noexcept
+{
+	drvo->Load(CString("wood.jpg"));
+
+}
+
+Czad8knjigaView::~Czad8knjigaView()
+{
+	delete drvo;
+}
+
+BOOL Czad8knjigaView::PreCreateWindow(CREATESTRUCT& cs)
+{
+	// TODO: Modify the Window class or styles here by modifying
+	//  the CREATESTRUCT cs
+
+	return CView::PreCreateWindow(cs);
+}
+void Czad8knjigaView::Translate(CDC* pDC, int dx, int dy, bool rightMultiply)
+{
+	XFORM xform;
+	xform.eM11 = 1;
+	xform.eM12 = 0;
+	xform.eM21 = 0;
+	xform.eM22 = 1;
+	xform.eDx = dx;
+	xform.eDy = dy;
+
+	if (rightMultiply) {
+		pDC->ModifyWorldTransform(&xform, MWT_RIGHTMULTIPLY);
+	}
+	else {
+		pDC->ModifyWorldTransform(&xform, MWT_LEFTMULTIPLY);
+	}
+}
+
+void Czad8knjigaView::Rotate(CDC* pDC, float angle, bool rightMultiply)
+{
+	XFORM xform;
+	xform.eM11 = cos(angle * 3.14 / 180);
+	xform.eM12 = sin(angle * 3.14 / 180);
+	xform.eM21 = -sin(angle * 3.14 / 180);
+	xform.eM22 = cos(angle * 3.14 / 180);
+	xform.eDx = 0;
+	xform.eDy = 0;
+
+	if (rightMultiply) {
+		pDC->ModifyWorldTransform(&xform, MWT_RIGHTMULTIPLY);
+	}
+	else {
+		pDC->ModifyWorldTransform(&xform, MWT_LEFTMULTIPLY);
+	}
+}
+
+void Czad8knjigaView::Scale(CDC* pDC, float sx, float sy, bool rightMultiply)
+{
+	XFORM xform;
+	xform.eM11 = sx;
+	xform.eM12 = 0;
+	xform.eM21 = 0;
+	xform.eM22 = sy;
+	xform.eDx = 0;
+	xform.eDy = 0;
+
+	if (rightMultiply) {
+		pDC->ModifyWorldTransform(&xform, MWT_RIGHTMULTIPLY);
+	}
+	else {
+		pDC->ModifyWorldTransform(&xform, MWT_LEFTMULTIPLY);
+	}
+}
+void Czad8knjigaView::DrawStar(CDC* pDC, int size)
+{
+	CRect rect;
+	GetClientRect(&rect);
+	Translate(pDC, pomeraj, 0, false);
+	Rotate(pDC, ugao, false);
+	DrawBlade(pDC, size);
+	Rotate(pDC, -90, false);
+	DrawBlade(pDC, size);
+	Rotate(pDC, -90, false);
+	DrawBlade(pDC, size);
+	Rotate(pDC, -90, false);
+	DrawBlade(pDC, size);
+
+
+
+}
+void Czad8knjigaView::Drvo(CDC* pDC)
+{
+	CRect rect;
+	GetClientRect(&rect);
+
+	drvo->Draw(pDC, CRect(0, 0, drvo->Width(), drvo->Height()), CRect(0, 0, drvo->Width(), drvo->Height()));
+}
+void Czad8knjigaView::DrawBlade(CDC* pDC, int size)
+{
+
+	CPen* siva = new CPen(PS_SOLID, 1, RGB(228, 228, 228));
+	CBrush* svetlosiva = new CBrush(RGB(228, 228, 228));
+	CBrush* tamnosiva = new CBrush(RGB(128, 128, 128));
+
+	CPen* old = pDC->SelectObject(siva);
+	CBrush* oldbrush = pDC->SelectObject(svetlosiva);
+
+	CPoint tacke[3] = { CPoint(0,0),CPoint(size,-size),CPoint(4 * size,0) };
+	pDC->Polygon(tacke, 3);
+
+	 pDC->SelectObject(tamnosiva);
+	 CPoint tacke1[3] = { CPoint(0,0),CPoint(size,size),CPoint(4 * size,0) };
+	 pDC->Polygon(tacke1, 3);
+
+	 CFont tekst;
+	 tekst.CreateFontW(0.7 * size, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Monotype Corsiva");
+
+	 pDC->SetTextColor(RGB(0, 0, 0));
+	 pDC->SetBkMode(TRANSPARENT);
+
+	 pDC->TextOutW(size, -10, L"Shuricane");
+
+	pDC->SelectObject(old);
+	pDC->SelectObject(oldbrush);
+
+}
+
+// Czad8knjigaView drawing
+
+void Czad8knjigaView::OnDraw(CDC* pDC)
+{
+	Czad8knjigaDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (!pDoc)
+		return;
+
+	CRect rect;
+	GetClientRect(&rect);
+	XFORM trans;
+	int g = pDC->SetGraphicsMode(GM_ADVANCED);
+	pDC->GetWorldTransform(&trans);
+
+	CBrush pozadina(RGB(137, 211, 244));
+	CBrush* oldbrush = pDC->SelectObject(&pozadina);
+
+	pDC->Rectangle(0, 0, rect.Width(), rect.Height());
+	pDC->SelectObject(oldbrush);
+
+
+	Translate(pDC, 3 * size, rect.Height()/2, false);
+	//DrawBlade(pDC, 45);
+	DrawStar(pDC, size);
+
+	pDC->SetWorldTransform(&trans);
+
+	Translate(pDC, 1200, 0, false);
+	Drvo(pDC);
+	pDC->SetWorldTransform(&trans);
+
+	pDC->SetGraphicsMode(g);
+
+	// TODO: add draw code for native data here
+}
+
+
+// Czad8knjigaView printing
+
+BOOL Czad8knjigaView::OnPreparePrinting(CPrintInfo* pInfo)
+{
+	// default preparation
+	return DoPreparePrinting(pInfo);
+}
+
+void Czad8knjigaView::OnBeginPrinting(CDC* /pDC/, CPrintInfo* /pInfo/)
+{
+	// TODO: add extra initialization before printing
+}
+
+void Czad8knjigaView::OnEndPrinting(CDC* /pDC/, CPrintInfo* /pInfo/)
+{
+	// TODO: add cleanup after printing
+}
+
+
+// Czad8knjigaView diagnostics
+
+#ifdef _DEBUG
+void Czad8knjigaView::AssertValid() const
+{
+	CView::AssertValid();
+}
+
+void Czad8knjigaView::Dump(CDumpContext& dc) const
+{
+	CView::Dump(dc);
+}
+
+Czad8knjigaDoc* Czad8knjigaView::GetDocument() const // non-debug version is inline
+{
+	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(Czad8knjigaDoc)));
+	return (Czad8knjigaDoc*)m_pDocument;
+}
+#endif //_DEBUG
+
+
+// Czad8knjigaView message handlers
+
+
+void Czad8knjigaView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	if (nChar == 'w' || nChar == 'W') {
+		ugao += 10;
+		pomeraj += 20;
+		if (pomeraj == 1200-7*size+10/100*320) {
+			pomeraj -= 20;
+		}
+	}
+	Invalidate();
+	CView::OnKeyDown(nChar, nRepCnt, nFlags);

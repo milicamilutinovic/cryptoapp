@@ -18,7 +18,7 @@ namespace CryptoApp.Services
         }
 
         // Algoritam se sada prosleđuje kao parametar
-        public async Task EncryptAndSaveFileAsync(string inputFilePath, string algorithm)
+        public async Task<string> EncryptAndSaveFileAsync(string inputFilePath, string algorithm)
         {
             byte[] fileBytes = await File.ReadAllBytesAsync(inputFilePath);
 
@@ -40,19 +40,12 @@ namespace CryptoApp.Services
             // Šifrovanje
             byte[] encrypted = _cryptoService.Encrypt(fileBytes, algorithm, key, iv);
 
-            // Destinacija u wwwroot/X
             var encryptedDir = Path.Combine(_env.WebRootPath, _settings.EncryptedFilesDirectory.TrimStart('/', '\\'));
             Directory.CreateDirectory(encryptedDir);
 
             string originalFileName = Path.GetFileName(inputFilePath);
-            string fileNameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName);
-            string ext = Path.GetExtension(originalFileName);
-
-            string encryptedFileName = $"{fileNameWithoutExt}_enc_{algorithm}{ext}";
+            string encryptedFileName = $"{Path.GetFileNameWithoutExtension(originalFileName)}_enc_{algorithm}{Path.GetExtension(originalFileName)}";
             string encryptedPath = Path.Combine(encryptedDir, encryptedFileName);
-
-            if (File.Exists(encryptedPath))
-                return;
 
             await File.WriteAllBytesAsync(encryptedPath, encrypted);
 
@@ -66,10 +59,13 @@ namespace CryptoApp.Services
                 OriginalSize = fileBytes.Length,
                 CreatedAt = DateTime.UtcNow
             };
-
             string metaJson = JsonSerializer.Serialize(metaObj, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(encryptedPath + ".meta", metaJson);
+
+            return encryptedPath; // vraćamo apsolutnu putanju fajla
         }
+
+
 
         // Dekripcija ostaje ista, koristi meta fajl
         public async Task DecryptAndSaveFileAsync(string encryptedFileName)
@@ -120,6 +116,36 @@ namespace CryptoApp.Services
                 name = name.Substring(0, encIndex);
             return name + ext;
         }
+        public async Task DecryptAndSaveFileToDirectoryAsync(string encryptedFilePath, string targetDirectory, string originalFileName)
+        {
+            if (!File.Exists(encryptedFilePath))
+                throw new FileNotFoundException("Enkriptovani fajl nije pronađen.", encryptedFilePath);
+
+            var metaFilePath = encryptedFilePath + ".meta";
+            if (!File.Exists(metaFilePath))
+                throw new FileNotFoundException("Meta fajl nije pronađen.", metaFilePath);
+
+            var metaJson = await File.ReadAllTextAsync(metaFilePath);
+            var meta = JsonSerializer.Deserialize<EncryptedMeta>(metaJson);
+
+            byte[] encryptedData = await File.ReadAllBytesAsync(encryptedFilePath);
+            byte[] key = Convert.FromBase64String(meta.Key);
+            byte[] iv = meta.IV != null ? Convert.FromBase64String(meta.IV) : null;
+
+            byte[] decryptedData = _cryptoService.Decrypt(encryptedData, meta.Algorithm, key, iv);
+
+            if (meta.OriginalSize < decryptedData.Length)
+            {
+                byte[] trimmed = new byte[meta.OriginalSize];
+                Array.Copy(decryptedData, trimmed, meta.OriginalSize);
+                decryptedData = trimmed;
+            }
+
+            Directory.CreateDirectory(targetDirectory);
+            string decodedFilePath = Path.Combine(targetDirectory, originalFileName);
+            await File.WriteAllBytesAsync(decodedFilePath, decryptedData);
+        }
+
 
         private class EncryptedMeta
         {
