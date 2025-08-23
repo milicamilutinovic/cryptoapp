@@ -17,52 +17,53 @@ namespace CryptoApp.Services
             _env = env;
         }
 
-        public async Task EncryptAndSaveFileAsync(string inputFilePath)
+        // Algoritam se sada prosleđuje kao parametar
+        public async Task EncryptAndSaveFileAsync(string inputFilePath, string algorithm)
         {
-            // učitaj original
             byte[] fileBytes = await File.ReadAllBytesAsync(inputFilePath);
 
-            // generiši key/iv
+            // Generiši key/iv
             byte[] key;
             byte[] iv = null;
             using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
             {
                 key = new byte[16];
                 rng.GetBytes(key);
-                if (_settings.SelectedEncryptionAlgorithm?.ToUpper().Contains("CBC") == true)
+
+                if (algorithm?.ToUpper().Contains("CBC") == true)
                 {
                     iv = new byte[8];
                     rng.GetBytes(iv);
                 }
             }
 
-            // enkripcija
-            byte[] encrypted = _cryptoService.Encrypt(fileBytes, _settings.SelectedEncryptionAlgorithm, key, iv);
+            // Šifrovanje
+            byte[] encrypted = _cryptoService.Encrypt(fileBytes, algorithm, key, iv);
 
-            // destinacija u wwwroot/X (EncryptedFilesDirectory)
+            // Destinacija u wwwroot/X
             var encryptedDir = Path.Combine(_env.WebRootPath, _settings.EncryptedFilesDirectory.TrimStart('/', '\\'));
             Directory.CreateDirectory(encryptedDir);
 
-            // ime sa sufiksom _enc
             string originalFileName = Path.GetFileName(inputFilePath);
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName);
             string ext = Path.GetExtension(originalFileName);
-            string encryptedFileName = $"{fileNameWithoutExt}_enc{ext}";
 
+            string encryptedFileName = $"{fileNameWithoutExt}_enc_{algorithm}{ext}";
             string encryptedPath = Path.Combine(encryptedDir, encryptedFileName);
 
-            // Ako već postoji enkriptovana verzija - preskoči (izbegava duplo enkriptovanje)
             if (File.Exists(encryptedPath))
                 return;
 
             await File.WriteAllBytesAsync(encryptedPath, encrypted);
 
+            // Snimi meta fajl
             var metaObj = new
             {
                 OriginalFileName = originalFileName,
-                Algorithm = _settings.SelectedEncryptionAlgorithm,
+                Algorithm = algorithm,
                 Key = Convert.ToBase64String(key),
                 IV = iv != null ? Convert.ToBase64String(iv) : null,
+                OriginalSize = fileBytes.Length,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -70,11 +71,7 @@ namespace CryptoApp.Services
             await File.WriteAllTextAsync(encryptedPath + ".meta", metaJson);
         }
 
-        public byte[] Decrypt(byte[] data, string algorithmName, byte[] key, byte[] iv = null)
-        {
-            return _cryptoService.Decrypt(data, algorithmName, key, iv);
-        }
-
+        // Dekripcija ostaje ista, koristi meta fajl
         public async Task DecryptAndSaveFileAsync(string encryptedFileName)
         {
             var encryptedDir = Path.Combine(_env.WebRootPath, _settings.EncryptedFilesDirectory.TrimStart('/', '\\'));
@@ -94,28 +91,33 @@ namespace CryptoApp.Services
             byte[] key = Convert.FromBase64String(meta.Key);
             byte[] iv = meta.IV != null ? Convert.FromBase64String(meta.IV) : null;
 
-            byte[] decryptedData = Decrypt(encryptedData, meta.Algorithm, key, iv);
+            byte[] decryptedData = _cryptoService.Decrypt(encryptedData, meta.Algorithm, key, iv);
+
+            // Trim prema originalnoj veličini
+            if (meta.OriginalSize < decryptedData.Length)
+            {
+                byte[] trimmed = new byte[meta.OriginalSize];
+                Array.Copy(decryptedData, trimmed, meta.OriginalSize);
+                decryptedData = trimmed;
+            }
 
             var decodedDir = Path.Combine(_env.WebRootPath, "decoded");
             Directory.CreateDirectory(decodedDir);
 
-            // izbaci samo tačan _enc suffix pre ekstenzije (bez grešaka)
             string decodedFileName = RemoveEncSuffix(encryptedFileName);
             var decodedFilePath = Path.Combine(decodedDir, decodedFileName);
 
-            // Ako već postoji decoded fajl — preskoči (ne prepisuj)
-            if (File.Exists(decodedFilePath))
-                return;
-
-            await File.WriteAllBytesAsync(decodedFilePath, decryptedData);
+            if (!File.Exists(decodedFilePath))
+                await File.WriteAllBytesAsync(decodedFilePath, decryptedData);
         }
 
         private static string RemoveEncSuffix(string encryptedFileName)
         {
             var ext = Path.GetExtension(encryptedFileName);
             var name = Path.GetFileNameWithoutExtension(encryptedFileName);
-            if (name.EndsWith("_enc"))
-                name = name.Substring(0, name.Length - 4);
+            int encIndex = name.IndexOf("_enc_");
+            if (encIndex >= 0)
+                name = name.Substring(0, encIndex);
             return name + ext;
         }
 
@@ -125,6 +127,7 @@ namespace CryptoApp.Services
             public string Algorithm { get; set; }
             public string Key { get; set; }
             public string IV { get; set; }
+            public int OriginalSize { get; set; }
             public DateTime CreatedAt { get; set; }
         }
     }

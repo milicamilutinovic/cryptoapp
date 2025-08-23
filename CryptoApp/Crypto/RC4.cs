@@ -50,7 +50,7 @@
 
         public byte[] Decrypt(byte[] data)
         {
-            return Encrypt(data); // RC4 decryption is same as encryption
+            return Encrypt(data); // RC4 dekripcija ista kao enkripcija
         }
     }
 }

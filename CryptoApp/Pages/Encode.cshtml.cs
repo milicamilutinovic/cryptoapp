@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using CryptoApp.Services;
-using System;
-using System.IO;
-using System.Text;
 using CryptoApp.Models;
-using Microsoft.Extensions.Options;
+using System.Text.Json;
+using System.Security.Cryptography;
 
 namespace CryptoApp.Pages
 {
@@ -13,20 +11,15 @@ namespace CryptoApp.Pages
     {
         private readonly CryptoService _cryptoService;
         private readonly IWebHostEnvironment _env;
-        private readonly AppSettings _settings;
 
-        public EncodeModel(CryptoService cryptoService, IWebHostEnvironment env, IOptions<AppSettings> options)
+        public EncodeModel(CryptoService cryptoService, IWebHostEnvironment env)
         {
             _cryptoService = cryptoService;
             _env = env;
-            _settings = options.Value;
         }
 
         [BindProperty]
         public IFormFile UploadedFile { get; set; }
-
-        [BindProperty]
-        public string Key { get; set; }
 
         [BindProperty]
         public string Algorithm { get; set; }
@@ -34,9 +27,7 @@ namespace CryptoApp.Pages
         public string EncryptedFilePath { get; set; }
         public string ErrorMessage { get; set; }
 
-        public void OnGet()
-        {
-        }
+        public void OnGet() { }
 
         public IActionResult OnPost()
         {
@@ -48,15 +39,22 @@ namespace CryptoApp.Pages
 
             try
             {
-                // Učitavanje fajla u bajtove
-                using var ms = new MemoryStream();
-                UploadedFile.CopyTo(ms);
-                byte[] fileBytes = ms.ToArray();
+                // ucitavanje fajla
+                byte[] fileBytes;
+                using (var ms = new MemoryStream())
+                {
+                    UploadedFile.CopyTo(ms);
+                    fileBytes = ms.ToArray();
+                }
 
-                // Pretvaranje ključa u bajtove
-                byte[] keyBytes = Encoding.UTF8.GetBytes(Key);
+                // generisanje slučajnog ključa (16 bajtova)
+                byte[] keyBytes = new byte[16];
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(keyBytes);
+                }
 
-                // IV samo ako je XTEA-CBC
+                // IV samo za XTEA-CBC
                 byte[] iv = null;
                 if (Algorithm == "XTEA-CBC")
                 {
@@ -64,39 +62,45 @@ namespace CryptoApp.Pages
                     Array.Copy(keyBytes, iv, Math.Min(keyBytes.Length, iv.Length));
                 }
 
-                // Šifrovanje
+                // sifrovanje
                 byte[] encryptedData = _cryptoService.Encrypt(fileBytes, Algorithm, keyBytes, iv);
 
-                // 1️ Snimanje u encrypted folder
+                // snimanje šifrovanog fajla
                 var encryptedDir = Path.Combine(_env.WebRootPath, "encrypted");
                 if (!Directory.Exists(encryptedDir))
                     Directory.CreateDirectory(encryptedDir);
 
-                var fileName = Path.GetFileNameWithoutExtension(UploadedFile.FileName) + "_enc" + Path.GetExtension(UploadedFile.FileName);
+                // dodaj algoritam u ime fajla da se ne prepisuje
+                var fileName = Path.GetFileNameWithoutExtension(UploadedFile.FileName)
+                               + "_enc_" + Algorithm + Path.GetExtension(UploadedFile.FileName);
+
                 var encryptedPath = Path.Combine(encryptedDir, fileName);
-
                 System.IO.File.WriteAllBytes(encryptedPath, encryptedData);
-
-                // Relativna putanja za prikaz
                 EncryptedFilePath = Path.Combine("encrypted", fileName).Replace("\\", "/");
 
-                // 2️ Ako je FileWatcher uključen — snimi i u TargetDirectory
-                if (_settings.IsFileExchangeEnabled && !string.IsNullOrWhiteSpace(_settings.TargetDirectory))
+                // snimanje metapodataka u posebnu mapu
+                var metadata = new FileMetadata
                 {
-                    if (!Directory.Exists(_settings.TargetDirectory))
-                        Directory.CreateDirectory(_settings.TargetDirectory);
+                    Algorithm = Algorithm,
+                    KeyBase64 = Convert.ToBase64String(keyBytes),
+                    OriginalFileName = UploadedFile.FileName,
+                    OriginalSize = fileBytes.Length
+                };
 
-                    var watchedPath = Path.Combine(_settings.TargetDirectory, fileName);
-                    System.IO.File.WriteAllBytes(watchedPath, encryptedData);
-                }
+                var jsonDir = Path.Combine(_env.WebRootPath, "encryptedjson");
+                if (!Directory.Exists(jsonDir))
+                    Directory.CreateDirectory(jsonDir);
+
+                var metadataPath = Path.Combine(jsonDir, Path.GetFileNameWithoutExtension(fileName) + ".json");
+                System.IO.File.WriteAllText(metadataPath, JsonSerializer.Serialize(metadata));
+
+                return RedirectToPage("/Decode");
             }
             catch (Exception ex)
             {
                 ErrorMessage = "Došlo je do greške: " + ex.Message;
+                return Page();
             }
-
-            return Page();
         }
-
     }
 }

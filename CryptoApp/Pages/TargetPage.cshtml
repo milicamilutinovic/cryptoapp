@@ -88,17 +88,14 @@
                         <tr>
                             <td>@f</td>
                             <td>
-                                <form method="post" style="display:inline">
-                                    <input type="hidden" name="fileName" value="@f" />
-                                    <button type="submit" name="action" value="Decrypt">Dešifruj</button>
-                                </form>
-                                &nbsp;
-                                <a href="@Url.Content("~/encrypted/" + f)">Preuzmi</a>
+                              
+                                <a asp-page-handler="Download" asp-route-fileName="@f">Preuzmi</a>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+
         }
     }
     else

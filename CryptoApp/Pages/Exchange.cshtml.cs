@@ -6,6 +6,8 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
+using CryptoApp.Models;
+using Microsoft.Extensions.Options;
 
 namespace CryptoApp.Pages
 {
@@ -13,11 +15,14 @@ namespace CryptoApp.Pages
     {
         private readonly TransferService _transferService;
         private readonly IWebHostEnvironment _env;
+        private readonly IOptionsSnapshot<AppSettings> _settingsSnapshot;
 
-        public ExchangeModel(TransferService transferService, IWebHostEnvironment env)
+
+        public ExchangeModel(TransferService transferService, IWebHostEnvironment env, IOptionsSnapshot<AppSettings> settingsSnapshot)
         {
             _transferService = transferService;
             _env = env;
+            _settingsSnapshot = settingsSnapshot;
         }
         [BindProperty]
         public IFormFile UploadFile { get; set; }
@@ -32,7 +37,7 @@ namespace CryptoApp.Pages
         public List<string> ReceivedFiles { get; set; } = new();
         public bool IsListening { get; set; } = false;
 
-
+        public bool IsFileExchangeEnabled => _settingsSnapshot.Value.IsFileExchangeEnabled;
 
         private CancellationTokenSource _cts;
 
@@ -43,12 +48,12 @@ namespace CryptoApp.Pages
                 var savePath = Path.Combine(_env.WebRootPath, "received");
                 Directory.CreateDirectory(savePath);
 
-                // Ako već sluša, ne pokreći opet
+                // ako vec slusa, ne pokreći opet
                 if (_cts == null)
                 {
                     _cts = new CancellationTokenSource();
 
-                    // Pokreni slušanje u pozadini (bez await)
+                    // pokretanje slusanje u pozadini 
                     _ = _transferService.ReceiveFilesLoopAsync(savePath, Port, _cts.Token);
                 }
 
@@ -81,7 +86,7 @@ namespace CryptoApp.Pages
                     await UploadFile.CopyToAsync(fileStream);
                 }
 
-                // Pozovi SendFileAsync sa callback funkcijom koja ažurira StatusMessage
+                // zovi SendFileAsync sa callback funkcijom koja azurira StatusMessage
                 await _transferService.SendFileAsync(tempFile, IpAddress, Port, msg =>
                 {
                     StatusMessage = msg;
@@ -90,7 +95,7 @@ namespace CryptoApp.Pages
 
 
 
-            // Ažuriraj listu primljenih fajlova ako slušaš
+            // azuriraj listu primljenih fajlova ako slusas
             if (IsListening)
             {
                 var receivedDir = Path.Combine(_env.WebRootPath, "received");

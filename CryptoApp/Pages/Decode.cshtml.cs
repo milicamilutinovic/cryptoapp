@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using CryptoApp.Services;
-using System;
-using System.IO;
-using System.Text;
+using CryptoApp.Models;
+using System.Text.Json;
 
 namespace CryptoApp.Pages
 {
@@ -19,59 +18,69 @@ namespace CryptoApp.Pages
         }
 
         [BindProperty]
-        public IFormFile UploadedFile { get; set; }
+        public string SelectedFile { get; set; }
 
-        [BindProperty]
-        public string Key { get; set; }
-
-        [BindProperty]
-        public string Algorithm { get; set; }
-
+        public List<string> EncryptedFiles { get; set; } = new();
         public string DecryptedFilePath { get; set; }
         public string ErrorMessage { get; set; }
 
-        public void OnGet()
-        {
-        }
+        public void OnGet() => LoadEncryptedFiles();
 
         public IActionResult OnPost()
         {
-            if (UploadedFile == null || UploadedFile.Length == 0)
+            if (string.IsNullOrEmpty(SelectedFile))
             {
                 ErrorMessage = "Morate izabrati fajl.";
+                LoadEncryptedFiles();
                 return Page();
             }
 
             try
             {
-                // Učitavanje fajla u bajtove
-                using var ms = new MemoryStream();
-                UploadedFile.CopyTo(ms);
-                byte[] encryptedBytes = ms.ToArray();
+                var encryptedDir = Path.Combine(_env.WebRootPath, "encrypted");
+                var encryptedFilePath = Path.Combine(encryptedDir, SelectedFile);
 
-                // Priprema ključa i IV ako treba
-                byte[] keyBytes = Encoding.UTF8.GetBytes(Key);
+                if (!System.IO.File.Exists(encryptedFilePath))
+                {
+                    ErrorMessage = "Fajl ne postoji.";
+                    LoadEncryptedFiles();
+                    return Page();
+                }
+
+                // ucitavanje metapodataka
+                var jsonDir = Path.Combine(_env.WebRootPath, "encryptedjson");
+                var metadataPath = Path.Combine(jsonDir, Path.GetFileNameWithoutExtension(SelectedFile) + ".json");
+
+                if (!System.IO.File.Exists(metadataPath))
+                {
+                    ErrorMessage = "Metapodaci za fajl ne postoje.";
+                    LoadEncryptedFiles();
+                    return Page();
+                }
+
+                var metadata = JsonSerializer.Deserialize<FileMetadata>(System.IO.File.ReadAllText(metadataPath));
+                byte[] keyBytes = Convert.FromBase64String(metadata.KeyBase64);
                 byte[] iv = null;
-
-                if (Algorithm == "XTEA-CBC")
+                if (metadata.Algorithm == "XTEA-CBC")
                 {
                     iv = new byte[8];
                     Array.Copy(keyBytes, iv, Math.Min(keyBytes.Length, iv.Length));
                 }
 
-                // Dešifrovanje fajla
-                byte[] decrypted = _cryptoService.Decrypt(encryptedBytes, Algorithm, keyBytes, iv);
+                // ucitavanje sifrovanih bajtova i dekriptovanje
+                byte[] encryptedBytes = System.IO.File.ReadAllBytes(encryptedFilePath);
+                byte[] decrypted = _cryptoService.Decrypt(encryptedBytes, metadata.Algorithm, keyBytes, iv, metadata.OriginalSize);
 
-                // Kreiranje direktorijuma ako ne postoji
+                // snimanje dekriptovanog fajla
                 var saveDir = Path.Combine(_env.WebRootPath, "decrypted");
                 if (!Directory.Exists(saveDir))
                     Directory.CreateDirectory(saveDir);
 
-                // Generisanje imena dešifrovanog fajla
-                var decryptedFileName = Path.GetFileNameWithoutExtension(UploadedFile.FileName) + "_dec" + Path.GetExtension(UploadedFile.FileName);
-                var decryptedFilePath = Path.Combine(saveDir, decryptedFileName);
+                var decryptedFileName = Path.GetFileNameWithoutExtension(SelectedFile)
+                                        .Replace("_enc_" + metadata.Algorithm, "")
+                                        + "_dec" + Path.GetExtension(metadata.OriginalFileName);
 
-                // Čuvanje dešifrovanog fajla
+                var decryptedFilePath = Path.Combine(saveDir, decryptedFileName);
                 System.IO.File.WriteAllBytes(decryptedFilePath, decrypted);
 
                 DecryptedFilePath = Path.Combine("decrypted", decryptedFileName).Replace("\\", "/");
@@ -81,7 +90,25 @@ namespace CryptoApp.Pages
                 ErrorMessage = "Greška pri dešifrovanju: " + ex.Message;
             }
 
+            LoadEncryptedFiles();
             return Page();
+        }
+
+        private void LoadEncryptedFiles()
+        {
+            var encryptedDir = Path.Combine(_env.WebRootPath, "encrypted");
+            if (Directory.Exists(encryptedDir))
+            {
+                // ucitavanje svih fajlova u enc
+                EncryptedFiles = Directory.GetFiles(encryptedDir)
+                    .Select(Path.GetFileName)
+                    .Where(f => f.Contains("_enc_"))
+                    .ToList();
+            }
+            else
+            {
+                EncryptedFiles = new List<string>();
+            }
         }
     }
 }

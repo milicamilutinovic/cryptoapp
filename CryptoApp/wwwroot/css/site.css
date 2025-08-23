@@ -131,3 +131,131 @@ h1, h6, p {
             box-shadow: 0 0 15px #7b4ae2dd;
             transform: translateY(-4px);
         }
+/* Glavni container */
+.page-container {
+    max-width: 800px;
+    margin: 3rem auto;
+    padding: 2rem;
+    background-color: #1e1e2f;
+    border: 2px solid #7b4ae2;
+    border-radius: 12px;
+    box-shadow: 0 0 15px #7b4ae2aa;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 600;
+}
+
+    /* Naslovi */
+    .page-container h1 {
+        text-align: center;
+        color: #ddd;
+        margin-bottom: 2rem;
+        font-weight: 700;
+    }
+
+    .page-container h3 {
+        color: #bbb;
+        margin-bottom: 1rem;
+        font-weight: 700;
+    }
+
+/* Input polja */
+input[type="file"],
+input[type="text"],
+input[type="number"] {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    border: 1.5px solid #7b4ae2;
+    background-color: #121212;
+    color: #eee;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    border-color: #9f7eff;
+    box-shadow: 0 0 8px #9f7effaa;
+}
+
+/* Dugmad */
+button, input[type="submit"] {
+    width: 100%;
+    padding: 1rem 0;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(45deg, #7b4ae2, #9f7eff);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0 15px #7b4ae2aa;
+    transition: all 0.3s ease;
+    margin-top: 0.5rem;
+}
+
+    button:hover:not(:disabled),
+    input[type="submit"]:hover {
+        box-shadow: 0 0 25px #9f7effcc;
+        transform: scale(1.05);
+    }
+
+    button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+/* Tabele / liste fajlova */
+.file-table, .file-list {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+    .file-table th, .file-table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #333;
+        color: #eee;
+        text-align: left;
+    }
+
+.file-list {
+    list-style: none;
+    padding: 0;
+}
+
+    .file-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #333;
+    }
+
+/* Download link */
+.download-btn {
+    background: linear-gradient(45deg, #4ae27b, #7eff9f);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    color: #000;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+    .download-btn:hover {
+        box-shadow: 0 0 10px #7eff9fbb;
+        transform: scale(1.05);
+    }
+
+/* Status poruka */
+.status-message {
+    max-width: 600px;
+    margin: 2rem auto 0 auto;
+    color: #6fcf97;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+}

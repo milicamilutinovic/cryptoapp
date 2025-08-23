@@ -7,13 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\encrypted\nekiteskt_enc.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Konscious.Security.Cryptography.Blake2" Version="1.1.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\decoded\" />
     <Folder Include="wwwroot\decrypted\" />
+    <Folder Include="wwwroot\encryptedjson\" />
     <Folder Include="wwwroot\encrypted\" />
     <Folder Include="wwwroot\watched\" />
+    <Folder Include="wwwroot\wwwroot\encrypted\" />
   </ItemGroup>
 
 </Project>

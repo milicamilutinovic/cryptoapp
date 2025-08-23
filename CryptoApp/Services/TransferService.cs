@@ -60,7 +60,7 @@ namespace CryptoApp.Services
 
                     await stream.FlushAsync();
                     statusCallback?.Invoke($"Fajl '{fileName}' uspešno poslat.");
-                    return true; // uspešno poslato
+                    return true; // uspesno poslato
                 }
                 catch (SocketException)
                 {
@@ -111,7 +111,7 @@ namespace CryptoApp.Services
                             totalRead += read;
                         }
 
-                        byte[] decryptedData = encryptedData; // Dekripcija ako treba
+                        byte[] decryptedData = encryptedData; // dekripcija ako treba
 
                         var blakeHasher = new BlakeHasher("tajni_kljuc_za_hash");
                         byte[] localHash = blakeHasher.HashBytes(decryptedData);
@@ -121,7 +121,7 @@ namespace CryptoApp.Services
                         if (!isValid)
                         {
                             Console.WriteLine("Integritet fajla NIJE potvrđen. Fajl je možda oštećen.");
-                            continue; // nastavi sa sledećim fajlom, ne prekidaj petlju
+                            continue; // nastavi sa sledecim fajlom, ne prekidaj petlju
                         }
 
                         Directory.CreateDirectory(saveDirectory);
@@ -133,7 +133,7 @@ namespace CryptoApp.Services
                     catch (Exception exInner)
                     {
                         Console.WriteLine("Greška prilikom obrade jednog fajla: " + exInner.Message);
-                        // Možeš logovati i stack trace ako želiš
+                      
                     }
                 }
             }

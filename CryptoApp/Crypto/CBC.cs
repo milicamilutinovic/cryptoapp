@@ -1,62 +1,74 @@
-﻿namespace CryptoApp.Crypto
+﻿
+public class CBC
 {
-    public class CBC
+    private readonly XTEA xtea;
+    private readonly byte[] iv;
+    private const int BlockSize = 8;
+
+    public CBC(byte[] key, byte[] iv)
     {
-        private readonly XTEA xtea;
-        private readonly byte[] iv;
+        this.xtea = new XTEA(key);
+        if (iv.Length != BlockSize)
+            throw new ArgumentException($"IV must be {BlockSize} bytes");
+        this.iv = iv;
+    }
 
-        public CBC(byte[] key, byte[] iv)
+    public byte[] Encrypt(byte[] plaintext)
+    {
+        int padding = BlockSize - (plaintext.Length % BlockSize);
+        if (padding == 0) padding = BlockSize;
+
+        byte[] padded = new byte[plaintext.Length + padding];
+        Array.Copy(plaintext, padded, plaintext.Length);
+
+        //  dodajem padding vrednosti u zadnje bajtove
+        for (int i = plaintext.Length; i < padded.Length; i++)
+            padded[i] = (byte)padding;
+
+        byte[] ciphertext = new byte[padded.Length];
+        byte[] previousBlock = iv;
+
+        for (int i = 0; i < padded.Length; i += BlockSize)
         {
-            this.xtea = new XTEA(key);
-            this.iv = iv;
+            byte[] block = new byte[BlockSize];
+            Array.Copy(padded, i, block, 0, BlockSize);
+
+            // XOR sa prethodnim blokom
+            for (int j = 0; j < BlockSize; j++)
+                block[j] ^= previousBlock[j];
+
+            byte[] encrypted = xtea.EncryptBlock(block);
+            Array.Copy(encrypted, 0, ciphertext, i, BlockSize);
+            previousBlock = encrypted;
         }
 
-        public byte[] Encrypt(byte[] plaintext)
+        return ciphertext;
+    }
+
+    public byte[] Decrypt(byte[] ciphertext, int originalSize)
+    {
+        if (ciphertext.Length % BlockSize != 0)
+            throw new ArgumentException("Ciphertext length must be multiple of block size");
+
+        byte[] plaintext = new byte[ciphertext.Length];
+        byte[] previousBlock = iv;
+
+        for (int i = 0; i < ciphertext.Length; i += BlockSize)
         {
-            int blockSize = 8;
-            int paddedLength = ((plaintext.Length + blockSize - 1) / blockSize) * blockSize;
-            byte[] padded = new byte[paddedLength];
-            Array.Copy(plaintext, padded, plaintext.Length); // zero padding
+            byte[] block = new byte[BlockSize];
+            Array.Copy(ciphertext, i, block, 0, BlockSize);
 
-            byte[] ciphertext = new byte[paddedLength];
-            byte[] previousBlock = iv;
+            byte[] decrypted = xtea.DecryptBlock(block);
 
-            for (int i = 0; i < paddedLength; i += blockSize)
-            {
-                byte[] block = new byte[blockSize];
-                Array.Copy(padded, i, block, 0, blockSize);
+            for (int j = 0; j < BlockSize; j++)
+                plaintext[i + j] = (byte)(decrypted[j] ^ previousBlock[j]);
 
-                for (int j = 0; j < blockSize; j++)
-                    block[j] ^= previousBlock[j];
-
-                byte[] encrypted = xtea.Encrypt(block);
-                Array.Copy(encrypted, 0, ciphertext, i, blockSize);
-                previousBlock = encrypted;
-            }
-
-            return ciphertext;
+            previousBlock = block;
         }
 
-        public byte[] Decrypt(byte[] ciphertext)
-        {
-            int blockSize = 8;
-            byte[] plaintext = new byte[ciphertext.Length];
-            byte[] previousBlock = iv;
-
-            for (int i = 0; i < ciphertext.Length; i += blockSize)
-            {
-                byte[] block = new byte[blockSize];
-                Array.Copy(ciphertext, i, block, 0, blockSize);
-
-                byte[] decrypted = xtea.Decrypt(block);
-
-                for (int j = 0; j < blockSize; j++)
-                    plaintext[i + j] = (byte)(decrypted[j] ^ previousBlock[j]);
-
-                previousBlock = block;
-            }
-
-            return plaintext;
-        }
+        // sklanjam padding tako da vraća originalnu veličinu fajla
+        byte[] final = new byte[originalSize];
+        Array.Copy(plaintext, 0, final, 0, originalSize);
+        return final;
     }
 }
